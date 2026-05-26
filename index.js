@@ -5,7 +5,8 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    Events
+    Events,
+    PermissionsBitField
 } = require('discord.js');
 
 const Tesseract = require('tesseract.js');
@@ -33,7 +34,59 @@ const client = new Client({
 // ============================================
 
 client.once('clientReady', () => {
+
     console.log(`${client.user.tag} is online!`);
+});
+
+// ============================================
+// JOIN DM SYSTEM
+// ============================================
+
+client.on('guildMemberAdd', async (member) => {
+
+    try {
+
+        const joinEmbed = new EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('👋 Welcome to Prex Optimization')
+            .setDescription(
+`Hey ${member.user},
+
+Welcome to **Prex Optimization** 🚀
+
+We are very happy to have you as a part of our community.  
+This server is specially made for gamers, optimization users, and members who want the best performance, support, and exclusive content.
+
+━━━━━━━━━━━━━━━━━━
+
+📌 Please complete the verification process to unlock all server channels and features.
+
+📌 Make sure to read all rules carefully to avoid any issues.
+
+📌 Stay active and respectful with all members and staff.
+
+━━━━━━━━━━━━━━━━━━
+
+💙 Thank you for joining and supporting Prex Optimization.
+
+We hope you enjoy your stay and become an important part of our growing community 🚀`
+            )
+            .setThumbnail(member.user.displayAvatarURL({
+                dynamic: true
+            }))
+            .setFooter({
+                text: 'Prex Optimization'
+            })
+            .setTimestamp();
+
+        await member.send({
+            embeds: [joinEmbed]
+        });
+
+    } catch (err) {
+
+        console.log('User DMs are closed.');
+    }
 });
 
 // ============================================
@@ -65,14 +118,15 @@ client.on('messageCreate', async (message) => {
             .setLabel('Verify')
             .setStyle(ButtonStyle.Success);
 
-        const row = new ActionRowBuilder().addComponents(
-            verifyButton
-        );
+        const row = new ActionRowBuilder()
+            .addComponents(verifyButton);
 
         await message.channel.send({
             embeds: [embed],
             components: [row]
         });
+
+        await message.delete().catch(() => {});
     }
 });
 
@@ -147,6 +201,55 @@ client.on(Events.InteractionCreate, async interaction => {
                 content: '✅ You are now verified!',
                 ephemeral: true
             });
+
+            // ============================================
+            // VERIFY DM
+            // ============================================
+
+            try {
+
+                const verifyEmbed = new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle('✅ Verification Successful')
+                    .setDescription(
+`Hey ${interaction.user},
+
+Congratulations 🎉
+
+Your verification has been completed successfully and you now have full access to the server.
+
+━━━━━━━━━━━━━━━━━━
+
+🔓 You can now access all available channels.
+
+💬 Feel free to chat with members and explore the community.
+
+📢 Stay updated with announcements, updates, and exclusive content.
+
+━━━━━━━━━━━━━━━━━━
+
+Thank you for verifying and becoming a trusted member of **Prex Optimization** 💙
+
+We hope you enjoy your experience with us 🚀`
+                    )
+                    .setThumbnail(
+                        interaction.user.displayAvatarURL({
+                            dynamic: true
+                        })
+                    )
+                    .setFooter({
+                        text: 'Prex Optimization'
+                    })
+                    .setTimestamp();
+
+                await interaction.user.send({
+                    embeds: [verifyEmbed]
+                });
+
+            } catch (err) {
+
+                console.log('User DMs are closed.');
+            }
 
         } catch (err) {
 
@@ -271,12 +374,58 @@ client.on('messageCreate', async (message) => {
 
             if (role) {
 
-                await message.member.roles.add(
-                    role
-                );
+                await message.member.roles.add(role);
+            }
+
+            // ============================================
+            // SUBSCRIBER DM
+            // ============================================
+
+            try {
+
+                const subEmbed = new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle('🎉 Subscriber Verification Successful')
+                    .setDescription(
+`Hey ${message.author},
+
+Thank you for subscribing to **Prex Optimization** 💙
+
+Your subscription proof has been verified successfully and you have now received access to subscriber-only benefits and channels.
+
+━━━━━━━━━━━━━━━━━━
+
+✅ Subscriber role has been added successfully.
+
+🔓 You can now access exclusive content and features.
+
+📢 Stay tuned for future updates, releases, and premium resources.
+
+━━━━━━━━━━━━━━━━━━
+
+We truly appreciate your support and thank you for being a valuable part of the Prex Optimization community 🚀`
+                    )
+                    .setThumbnail(
+                        message.author.displayAvatarURL({
+                            dynamic: true
+                        })
+                    )
+                    .setFooter({
+                        text: 'Prex Optimization'
+                    })
+                    .setTimestamp();
+
+                await message.author.send({
+                    embeds: [subEmbed]
+                });
+
+            } catch (err) {
+
+                console.log('User DMs are closed.');
             }
 
             // SUCCESS MESSAGE
+
             const successMsg =
                 await message.channel.send({
                     content:
@@ -284,12 +433,12 @@ client.on('messageCreate', async (message) => {
                 });
 
             // FETCH MESSAGES
+
             const messages =
                 await message.channel.messages.fetch({
                     limit: 100
                 });
 
-            // USER MESSAGES
             const userMessages =
                 messages.filter(
                     msg =>
@@ -298,6 +447,7 @@ client.on('messageCreate', async (message) => {
                 );
 
             // DELETE USER MESSAGES
+
             for (
                 const msg
                 of userMessages.values()
@@ -308,13 +458,13 @@ client.on('messageCreate', async (message) => {
             }
 
             // DELETE SUCCESS MESSAGE
+
             setTimeout(async () => {
 
                 await successMsg.delete()
                     .catch(() => {});
 
             }, 10000);
-
         }
 
         // ============================================
@@ -323,20 +473,17 @@ client.on('messageCreate', async (message) => {
 
         else {
 
-            // FAIL MESSAGE
             const failMsg =
                 await message.channel.send({
                     content:
                     '❌ Invalid proof. Timeout for 5 minutes.'
                 });
 
-            // TIMEOUT USER
             await message.member.timeout(
                 5 * 60 * 1000,
                 'Fake proof'
             ).catch(() => {});
 
-            // DELETE FAIL MESSAGE
             setTimeout(async () => {
 
                 await failMsg.delete()
@@ -344,7 +491,6 @@ client.on('messageCreate', async (message) => {
 
             }, 10000);
 
-            // DELETE USER MESSAGES
             setTimeout(async () => {
 
                 const messages =
@@ -392,6 +538,107 @@ client.on('messageCreate', async (message) => {
     } catch (err) {
 
         console.log(err);
+    }
+});
+
+// ============================================
+// CUSTOM EMBED SYSTEM
+// ============================================
+
+client.on('messageCreate', async (message) => {
+
+    if (message.author.bot) return;
+
+    // ============================================
+    // SIMPLE EMBED
+    // ============================================
+
+    if (message.content.startsWith('!embed')) {
+
+        if (
+            !message.member.permissions.has(
+                PermissionsBitField.Flags.Administrator
+            )
+        ) {
+
+            return message.reply({
+                content:
+                '❌ You need Administrator permission.'
+            });
+        }
+
+        const args =
+            message.content.slice(7).trim();
+
+        if (!args) {
+
+            return message.reply({
+                content:
+                '❌ Usage: !embed Your message'
+            });
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('📢 Prex Optimization')
+            .setDescription(args)
+            .setFooter({
+                text: 'Prex Optimization'
+            })
+            .setTimestamp();
+
+        await message.channel.send({
+            embeds: [embed]
+        });
+
+        await message.delete()
+            .catch(() => {});
+    }
+
+    // ============================================
+    // ANNOUNCEMENT EMBED
+    // ============================================
+
+    if (message.content.startsWith('!announce')) {
+
+        if (
+            !message.member.permissions.has(
+                PermissionsBitField.Flags.Administrator
+            )
+        ) {
+
+            return message.reply({
+                content:
+                '❌ You need Administrator permission.'
+            });
+        }
+
+        const args =
+            message.content.slice(10).trim();
+
+        if (!args) {
+
+            return message.reply({
+                content:
+                '❌ Usage: !announce Your announcement'
+            });
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('🚨 Important Announcement')
+            .setDescription(args)
+            .setFooter({
+                text: 'Prex Optimization'
+            })
+            .setTimestamp();
+
+        await message.channel.send({
+            embeds: [embed]
+        });
+
+        await message.delete()
+            .catch(() => {});
     }
 });
 
