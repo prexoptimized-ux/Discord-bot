@@ -230,19 +230,39 @@ client.on('messageCreate', async (message) => {
         // VALID CHECK
         // ============================================
 
-        const valid =
-            cleanText.includes('prex') &&
-            (
-                cleanText.includes('optimization') ||
-                cleanText.includes('opt')
-            ) &&
+        const hasPrex =
+            cleanText.includes('prex');
+
+        const hasOptimization =
+            cleanText.includes('optimization') ||
+            cleanText.includes('opt');
+
+        const hasSubscribed =
             cleanText.includes('subscribed');
+
+        const hasSubscribeButton =
+            cleanText.includes('subscribe') &&
+            !cleanText.includes('subscribed');
+
+        const valid =
+            hasPrex &&
+            hasOptimization &&
+            hasSubscribed &&
+            !hasSubscribeButton;
+
+        console.log({
+            hasPrex,
+            hasOptimization,
+            hasSubscribed,
+            hasSubscribeButton,
+            valid
+        });
 
         // ============================================
         // SUCCESS
         // ============================================
 
-        if (valid) {
+        if (valid === true) {
 
             const role =
                 message.guild.roles.cache.get(
