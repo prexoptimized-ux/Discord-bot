@@ -217,7 +217,7 @@ client.on('messageCreate', async (message) => {
             }
 
             await message.reply({
-                content: '✅ Subscriber role added successfully!'
+                content: '✅ Subscriber role added successfully!. Thanks for be our Family'
             });
 
             // DELETE USER MESSAGES
