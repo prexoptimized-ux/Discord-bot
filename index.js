@@ -216,9 +216,13 @@ client.on('messageCreate', async (message) => {
                 await message.member.roles.add(role);
             }
 
-            const successMsg = await message.reply({
-                content: '✅  Thanks for joining the Prex Optimization family !!'
+            const successMsg = await message.channel.send({
+                content: '✅ Subscriber role added successfully!'
             });
+
+            setTimeout(async () => {
+            await successMsg.delete().catch(() => {} );
+            }, 3000);
 
             // DELETE USER MESSAGES
             const messages = await message.channel.messages.fetch({
