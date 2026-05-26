@@ -216,8 +216,8 @@ client.on('messageCreate', async (message) => {
                 await message.member.roles.add(role);
             }
 
-            await message.reply({
-                content: '✅ Subscriber role added successfully!. Thanks for be our Family'
+            const successMsg = await message.reply({
+                content: '✅  Thanks for joining the Prex Optimization family !!'
             });
 
             // DELETE USER MESSAGES
@@ -232,6 +232,8 @@ client.on('messageCreate', async (message) => {
             for (const msg of userMessages.values()) {
                 await msg.delete().catch(() => {});
             }
+
+            await successMsg.delete().catch(() => {});
 
         } else {
 
