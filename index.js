@@ -5,13 +5,13 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    Events,
-    PermissionsBitField
+    Events
 } = require('discord.js');
 
 const Tesseract = require('tesseract.js');
 const axios = require('axios');
 const fs = require('fs');
+const sharp = require('sharp');
 
 require('dotenv').config();
 
@@ -38,11 +38,10 @@ client.on('messageCreate', async (message) => {
 
     if (message.author.bot) return;
 
-    // SEND VERIFY PANEL
     if (
-    message.content === '!verifypanel' &&
-    message.channel.id === process.env.VERIFY_CHANNEL_ID
-) {
+        message.content === '!verifypanel' &&
+        message.channel.id === process.env.VERIFY_CHANNEL_ID
+    ) {
 
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
@@ -77,7 +76,6 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isButton()) return;
 
-    // VERIFY BUTTON
     if (interaction.customId === 'verify') {
 
         try {
@@ -90,13 +88,11 @@ client.on(Events.InteractionCreate, async interaction => {
                 process.env.MEMBER_ROLE_ID
             );
 
-            // GIVE ROLES
             await interaction.member.roles.add([
                 verifiedRole,
                 memberRole
             ]);
 
-            // WELCOME EMBED
             const welcomeEmbed = new EmbedBuilder()
                 .setColor('#5865F2')
                 .setTitle('Welcome to Prex Optimization !!')
@@ -112,11 +108,6 @@ client.on(Events.InteractionCreate, async interaction => {
                     {
                         name: '🆔 User ID',
                         value: `${interaction.user.id}`,
-                        inline: false
-                    },
-                    {
-                        name: '🎭 Roles',
-                        value: `${verifiedRole}, ${memberRole}`,
                         inline: false
                     }
                 )
@@ -134,12 +125,12 @@ client.on(Events.InteractionCreate, async interaction => {
                 process.env.WELCOME_CHANNEL_ID
             );
 
-            // SEND WELCOME MESSAGE
-            await welcomeChannel.send({
-                embeds: [welcomeEmbed]
-            });
+            if (welcomeChannel) {
+                await welcomeChannel.send({
+                    embeds: [welcomeEmbed]
+                });
+            }
 
-            // REPLY
             await interaction.reply({
                 content: '✅ You are now verified!',
                 ephemeral: true
@@ -152,96 +143,147 @@ client.on(Events.InteractionCreate, async interaction => {
             await interaction.reply({
                 content: '❌ Verification failed.',
                 ephemeral: true
-            });
+            }).catch(() => {});
         }
     }
 });
 
 // ============================================
-// SUBSCRIBER CHECK SYSTEM
+// SUBSCRIBER PROOF SYSTEM
 // ============================================
 
 client.on('messageCreate', async (message) => {
 
-    if (message.author.bot) return;
-
-    // ONLY CHECK PROOF CHANNEL
-    if (message.channel.id !== process.env.PROOF_CHANNEL_ID) return;
-
-    // CHECK IMAGE
-    const attachment = message.attachments.first();
-
-    if (!attachment) {
-
-        await message.reply(
-            '❌ Please upload a subscription screenshot.'
-        );
-
-        return;
-    }
-
     try {
+
+        if (message.author.bot) return;
+
+        if (message.channel.id !== process.env.PROOF_CHANNEL_ID) return;
+
+        if (!message.attachments.size) return;
+
+        const attachment = message.attachments.first();
+
+        const fileName = `proof-${message.author.id}.png`;
+        const processedFile = `processed-${message.author.id}.png`;
 
         // DOWNLOAD IMAGE
         const response = await axios({
             url: attachment.url,
-            method: 'GET',
             responseType: 'arraybuffer'
         });
 
-        fs.writeFileSync('proof.png', response.data);
+        fs.writeFileSync(fileName, response.data);
 
-        // OCR SCAN
+        // IMPROVE IMAGE FOR OCR
+        await sharp(fileName)
+            .resize(2000)
+            .grayscale()
+            .normalize()
+            .sharpen()
+            .toFile(processedFile);
+
+        // OCR
         const result = await Tesseract.recognize(
-            'proof.png',
+            processedFile,
             'eng'
         );
 
-        const text = result.data.text.toLowerCase();
+        const cleanText = result.data.text.toLowerCase();
 
-        console.log(text);
+        console.log(cleanText);
 
-        // REQUIRED TEXT
-        const requiredChannel = 'prex optimization';
+        // FLEXIBLE CHECK
+        const valid =
+            cleanText.includes('prex') &&
+            (
+                cleanText.includes('optimization') ||
+                cleanText.includes('opt')
+            ) &&
+            (
+                cleanText.includes('subscribed') ||
+                cleanText.includes('subscribe') ||
+                cleanText.includes('sub')
+            );
 
-        // VALID SCREENSHOT
-        if (
-            text.includes(requiredChannel) &&
-            text.includes('subscribed')
-        ) {
+        if (valid) {
 
-            const subscriberRole = message.guild.roles.cache.get(
+            const role = message.guild.roles.cache.get(
                 process.env.SUBSCRIBER_ROLE_ID
             );
 
-            // GIVE ROLE
-            await message.member.roles.add(subscriberRole);
+            if (role) {
+                await message.member.roles.add(role);
+            }
 
-            await message.reply(
-                '✅ You are subscribed! Free Stuff channel is now unlocked.'
+            await message.reply({
+                content: '✅ Subscriber role added successfully!'
+            });
+
+            // DELETE USER MESSAGES
+            const messages = await message.channel.messages.fetch({
+                limit: 100
+            });
+
+            const userMessages = messages.filter(
+                msg => msg.author.id === message.author.id
             );
+
+            for (const msg of userMessages.values()) {
+                await msg.delete().catch(() => {});
+            }
 
         } else {
 
-            // TIMEOUT 5 MINUTES
+            await message.reply({
+                content: '❌ Invalid proof. Timeout for 5 minutes.'
+            });
+
             await message.member.timeout(
                 5 * 60 * 1000,
-                'Fake subscription proof'
-            );
+                'Fake proof'
+            ).catch(() => {});
 
-            await message.reply(
-                '❌ You are not subscribed. You got timeout for 5 minutes.'
-            );
+            // DELETE FAKE PROOF
+            setTimeout(async () => {
+
+                const messages = await message.channel.messages.fetch({
+                    limit: 100
+                });
+
+                const userMessages = messages.filter(
+                    msg => msg.author.id === message.author.id
+                );
+
+                for (const msg of userMessages.values()) {
+                    await msg.delete().catch(() => {});
+                }
+
+            }, 3000);
+        }
+
+        // DELETE TEMP FILES
+        if (fs.existsSync(fileName)) {
+            fs.unlinkSync(fileName);
+        }
+
+        if (fs.existsSync(processedFile)) {
+            fs.unlinkSync(processedFile);
         }
 
     } catch (err) {
 
-        console.error(err);
-
-        await message.reply(
-            '❌ Failed to analyze screenshot.'
-        );
+        console.log(err);
     }
+});
+
+// PREVENT CRASH
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Promise Rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
 });
 
 // LOGIN
