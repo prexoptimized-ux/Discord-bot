@@ -15,7 +15,10 @@ const sharp = require('sharp');
 
 require('dotenv').config();
 
+// ============================================
 // CLIENT
+// ============================================
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -25,7 +28,10 @@ const client = new Client({
     ]
 });
 
+// ============================================
 // BOT ONLINE
+// ============================================
+
 client.once('clientReady', () => {
     console.log(`${client.user.tag} is online!`);
 });
@@ -59,7 +65,9 @@ client.on('messageCreate', async (message) => {
             .setLabel('Verify')
             .setStyle(ButtonStyle.Success);
 
-        const row = new ActionRowBuilder().addComponents(verifyButton);
+        const row = new ActionRowBuilder().addComponents(
+            verifyButton
+        );
 
         await message.channel.send({
             embeds: [embed],
@@ -80,13 +88,15 @@ client.on(Events.InteractionCreate, async interaction => {
 
         try {
 
-            const verifiedRole = interaction.guild.roles.cache.get(
-                process.env.VERIFY_ROLE_ID
-            );
+            const verifiedRole =
+                interaction.guild.roles.cache.get(
+                    process.env.VERIFY_ROLE_ID
+                );
 
-            const memberRole = interaction.guild.roles.cache.get(
-                process.env.MEMBER_ROLE_ID
-            );
+            const memberRole =
+                interaction.guild.roles.cache.get(
+                    process.env.MEMBER_ROLE_ID
+                );
 
             await interaction.member.roles.add([
                 verifiedRole,
@@ -121,11 +131,13 @@ client.on(Events.InteractionCreate, async interaction => {
                 })
                 .setTimestamp();
 
-            const welcomeChannel = interaction.guild.channels.cache.get(
-                process.env.WELCOME_CHANNEL_ID
-            );
+            const welcomeChannel =
+                interaction.guild.channels.cache.get(
+                    process.env.WELCOME_CHANNEL_ID
+                );
 
             if (welcomeChannel) {
+
                 await welcomeChannel.send({
                     embeds: [welcomeEmbed]
                 });
@@ -158,24 +170,40 @@ client.on('messageCreate', async (message) => {
 
         if (message.author.bot) return;
 
-        if (message.channel.id !== process.env.PROOF_CHANNEL_ID) return;
+        if (
+            message.channel.id !==
+            process.env.PROOF_CHANNEL_ID
+        ) return;
 
         if (!message.attachments.size) return;
 
-        const attachment = message.attachments.first();
+        const attachment =
+            message.attachments.first();
 
-        const fileName = `proof-${message.author.id}.png`;
-        const processedFile = `processed-${message.author.id}.png`;
+        const fileName =
+            `proof-${message.author.id}.png`;
 
+        const processedFile =
+            `processed-${message.author.id}.png`;
+
+        // ============================================
         // DOWNLOAD IMAGE
+        // ============================================
+
         const response = await axios({
             url: attachment.url,
             responseType: 'arraybuffer'
         });
 
-        fs.writeFileSync(fileName, response.data);
+        fs.writeFileSync(
+            fileName,
+            response.data
+        );
 
+        // ============================================
         // IMPROVE IMAGE FOR OCR
+        // ============================================
+
         await sharp(fileName)
             .resize(2000)
             .grayscale()
@@ -183,97 +211,161 @@ client.on('messageCreate', async (message) => {
             .sharpen()
             .toFile(processedFile);
 
+        // ============================================
         // OCR
-        const result = await Tesseract.recognize(
-            processedFile,
-            'eng'
-        );
+        // ============================================
 
-        const cleanText = result.data.text.toLowerCase();
+        const result =
+            await Tesseract.recognize(
+                processedFile,
+                'eng'
+            );
+
+        const cleanText =
+            result.data.text.toLowerCase();
 
         console.log(cleanText);
 
-        // FLEXIBLE CHECK
+        // ============================================
+        // VALID CHECK
+        // ============================================
+
         const valid =
             cleanText.includes('prex') &&
             (
                 cleanText.includes('optimization') ||
                 cleanText.includes('opt')
             ) &&
-            (
-                cleanText.includes('subscribed') ||
-                cleanText.includes('subscribe') ||
-                cleanText.includes('sub')
-            );
+            cleanText.includes('subscribed');
+
+        // ============================================
+        // SUCCESS
+        // ============================================
 
         if (valid) {
 
-            const role = message.guild.roles.cache.get(
-                process.env.SUBSCRIBER_ROLE_ID
-            );
+            const role =
+                message.guild.roles.cache.get(
+                    process.env.SUBSCRIBER_ROLE_ID
+                );
 
             if (role) {
-                await message.member.roles.add(role);
+
+                await message.member.roles.add(
+                    role
+                );
             }
 
-            const successMsg = await message.channel.send({
-                content: '✅  You have been verified and given access to Free Access.'
-            });
+            // SUCCESS MESSAGE
+            const successMsg =
+                await message.channel.send({
+                    content:
+                    '✅ You have been verified and given access to Free Access.'
+                });
 
-            setTimeout(async () => {
-            await successMsg.delete().catch(() => {} );
-            }, 10000);
+            // FETCH MESSAGES
+            const messages =
+                await message.channel.messages.fetch({
+                    limit: 100
+                });
+
+            // USER MESSAGES
+            const userMessages =
+                messages.filter(
+                    msg =>
+                        msg.author.id ===
+                        message.author.id
+                );
 
             // DELETE USER MESSAGES
-            const messages = await message.channel.messages.fetch({
-                limit: 100
-            });
+            for (
+                const msg
+                of userMessages.values()
+            ) {
 
-            const userMessages = messages.filter(
-                msg => msg.author.id === message.author.id
-            );
-
-            for (const msg of userMessages.values()) {
-                await msg.delete().catch(() => {});
+                await msg.delete()
+                    .catch(() => {});
             }
 
-            await successMsg.delete().catch(() => {});
+            // DELETE SUCCESS MESSAGE
+            setTimeout(async () => {
 
-        } else {
+                await successMsg.delete()
+                    .catch(() => {});
 
-            await message.reply({
-                content: '❌ Invalid proof. Timeout for 5 minutes.'
-            });
+            }, 10000);
 
+        }
+
+        // ============================================
+        // FAIL
+        // ============================================
+
+        else {
+
+            // FAIL MESSAGE
+            const failMsg =
+                await message.channel.send({
+                    content:
+                    '❌ Invalid proof. Timeout for 5 minutes.'
+                });
+
+            // TIMEOUT USER
             await message.member.timeout(
                 5 * 60 * 1000,
                 'Fake proof'
             ).catch(() => {});
 
-            // DELETE FAKE PROOF
+            // DELETE FAIL MESSAGE
             setTimeout(async () => {
 
-                const messages = await message.channel.messages.fetch({
-                    limit: 100
-                });
+                await failMsg.delete()
+                    .catch(() => {});
 
-                const userMessages = messages.filter(
-                    msg => msg.author.id === message.author.id
-                );
+            }, 10000);
 
-                for (const msg of userMessages.values()) {
-                    await msg.delete().catch(() => {});
+            // DELETE USER MESSAGES
+            setTimeout(async () => {
+
+                const messages =
+                    await message.channel.messages.fetch({
+                        limit: 100
+                    });
+
+                const userMessages =
+                    messages.filter(
+                        msg =>
+                            msg.author.id ===
+                            message.author.id
+                    );
+
+                for (
+                    const msg
+                    of userMessages.values()
+                ) {
+
+                    await msg.delete()
+                        .catch(() => {});
                 }
 
             }, 3000);
         }
 
+        // ============================================
         // DELETE TEMP FILES
-        if (fs.existsSync(fileName)) {
+        // ============================================
+
+        if (
+            fs.existsSync(fileName)
+        ) {
+
             fs.unlinkSync(fileName);
         }
 
-        if (fs.existsSync(processedFile)) {
+        if (
+            fs.existsSync(processedFile)
+        ) {
+
             fs.unlinkSync(processedFile);
         }
 
@@ -283,14 +375,34 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// PREVENT CRASH
-process.on('unhandledRejection', (err) => {
-    console.error('Unhandled Promise Rejection:', err);
-});
+// ============================================
+// PREVENT BOT CRASH
+// ============================================
 
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
-});
+process.on(
+    'unhandledRejection',
+    (err) => {
 
+        console.error(
+            'Unhandled Promise Rejection:',
+            err
+        );
+    }
+);
+
+process.on(
+    'uncaughtException',
+    (err) => {
+
+        console.error(
+            'Uncaught Exception:',
+            err
+        );
+    }
+);
+
+// ============================================
 // LOGIN
+// ============================================
+
 client.login(process.env.TOKEN);
