@@ -217,12 +217,12 @@ client.on('messageCreate', async (message) => {
             }
 
             const successMsg = await message.channel.send({
-                content: '✅ Subscriber role added successfully!'
+                content: '✅  You have been verified and given access to Free Access.'
             });
 
             setTimeout(async () => {
             await successMsg.delete().catch(() => {} );
-            }, 3000);
+            }, 10000);
 
             // DELETE USER MESSAGES
             const messages = await message.channel.messages.fetch({
